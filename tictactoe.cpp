@@ -27,10 +27,9 @@ std::map<int, sf::Vector2f> coord  =
 class ISide
 {
 public:
-    bool isMoveMade = false;
-
+    bool isReady = false;
     virtual std::string getSide() const = 0;
-    virtual char getFlag() const = 0;
+    virtual char getChar() const = 0;
     virtual void makeMove() = 0;
 };
 
@@ -41,6 +40,8 @@ public:
     sf::Sprite playerS;
     sf::Vector2i pos;
 
+    int index = 0;
+
     Player(const std::string& path) 
     {
         playerT.loadFromFile(path);
@@ -48,36 +49,38 @@ public:
         playerS.setOrigin(85, 85);
     }
     
-    std::string getSide() const { return "Player"; }
+    std::string getSide() const override { return "Player"; }
 
-    char getFlag() const { return 'x'; }
+    char getChar() const override { return 'x';}
 
-    void makeMove() override
+    bool mapCoordinates(const sf::Vector2i& pos)
     {
-        int index = 0;
+        int i = 0;
         for(int y = 0; y <= 400; y += 200)
         {
             if(pos.y > y && pos.y < (y + 200))
             {
                 for(int x = 0; x <= 400; x += 200)
                 {
-                    if(pos.x > x && pos.x < (x + 200) && matrix[index] == 0)
+                    if(pos.x > x && pos.x < (x + 200) && matrix[i] == 0)
                     {
-
-                        sprites[index] = new sf::Sprite(playerS);
-                        sprites[index]->setPosition(coord[index]);
-
-                        matrix[index] = 'x';
-
-                        this->isMoveMade = true;
+                        this->index = i;
+                        return true;
                     }
-                    index++;
+                    i++;
                 }   
             }
-            else index += 3;
+            else i += 3;
         }    
-    }  
-    
+        return false;
+    }
+
+    void makeMove() override
+    {      
+        sprites[index] = new sf::Sprite(playerS);
+        sprites[index]->setPosition(coord[index]);
+        matrix[index] = 'x';
+    }   
 };
 
 class Bot : public ISide
@@ -93,22 +96,20 @@ public:
         botS.setOrigin(85,85);
     }
 
-    std::string getSide() const { return "Bot"; }
+    std::string getSide() const override { return "Bot"; }
 
-    char getFlag() const { return '0'; }
-
+    char getChar() const override { return '0'; }
     void makeMove() override
     {
         for(int i = 0; i < 9; i++)
         {
             if(matrix[i] == 0) 
             { 
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
                 sprites[i] = new sf::Sprite(botS);
                 sprites[i]->setPosition(coord[i]);
-
                 matrix[i] = '0';
-
-                this->isMoveMade = true;
 
                 break;
             }
@@ -117,7 +118,9 @@ public:
 
 };
 
-bool isVictory(ISide* side);
+bool checkWin();
+
+ISide* side;
 
 int main(int argc, char** argv)
 {
@@ -135,9 +138,12 @@ int main(int argc, char** argv)
    
     Player player("x.png");
     Bot bot("o.png");
+    side = &player;
 
-    bool victory = false;
-    ISide* side = &player;
+    bool gameFinished = false;
+    bot.isReady = true;
+
+
 
     while (window.isOpen())
     {
@@ -148,31 +154,27 @@ int main(int argc, char** argv)
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
                 window.close();
 
-
             if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             {
-                sf::Vector2i mouse_coords = sf::Mouse::getPosition(window);
-                player.pos = mouse_coords;
+                sf::Vector2i coords = sf::Mouse::getPosition(window);
+
+                if (player.mapCoordinates(coords)) player.isReady = true; 
             }
-        }
-        
+        }        
 
-        side->makeMove();
+        if(side->isReady)
+        {   
+            side->makeMove();
 
-        if(side->isMoveMade)
-        {
-            if(isVictory(side)) victory = true;
-            else
+            gameFinished = checkWin();
+            if(!gameFinished)
             {   
-                side->isMoveMade = false;
-
-                if(side->getSide() == "Player") side = &bot;
+                if(side->getSide() == "Player") { side->isReady = false; side = &bot; } 
                 else side = &player;
             }
         }
 
         window.clear();
-
         window.draw(sp_board);
 
         for(int i = 0; i < 9; i++)
@@ -183,11 +185,13 @@ int main(int argc, char** argv)
             }
         }
 
-        if(victory)
+        window.display();
+
+        if(gameFinished)
         {
             std::cout << side->getSide() << " has won!" << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            
+
             for(int i = 0; i < 9; i++)
             {
                 if(matrix[i] != 0)
@@ -195,27 +199,27 @@ int main(int argc, char** argv)
                     delete sprites[i];
                 }
             }
-
             return 0;
         }
-
-        window.display();
     }
-
     return 0;
 }
 
-bool isVictory(ISide* side)
+bool checkWin()
 {
-    char i = side->getFlag();
+    for(int i = 0; i != 9; i += 3)
+    {
+        std::cout << "| " << matrix[i] << " | " << matrix[i+1] << " | " << matrix[i+2] << " |" << std::endl;
+        std::cout << std::boolalpha << (matrix[0] == matrix[1] && matrix[1] == matrix[2]) << std::endl;
+    }
 
-    if( (matrix[0] == matrix[1]) && (matrix[1] == matrix[2]) && (matrix[2] == i) ||
-        (matrix[3] == matrix[4]) && (matrix[4] == matrix[5]) && (matrix[5] == i) ||
-        (matrix[6] == matrix[7]) && (matrix[7] == matrix[8]) && (matrix[8] == i) ||
-        (matrix[0] == matrix[3]) && (matrix[3] == matrix[6]) && (matrix[6] == i) ||
-        (matrix[1] == matrix[4]) && (matrix[4] == matrix[7]) && (matrix[7] == i) ||
-        (matrix[2] == matrix[5]) && (matrix[5] == matrix[8]) && (matrix[8] == i) ||
-        (matrix[0] == matrix[4]) && (matrix[4] == matrix[8]) && (matrix[8] == i) ||
-        (matrix[2] == matrix[4]) && (matrix[4] == matrix[6]) && (matrix[6] == i) ) return true;
+    if( (matrix[0] == matrix[1] && matrix[1] == matrix[2] && matrix[2] == side->getChar()) ||
+        (matrix[3] == matrix[4] && matrix[4] == matrix[5] && matrix[5] == side->getChar()) ||
+        (matrix[6] == matrix[7] && matrix[7] == matrix[8] && matrix[8] == side->getChar()) ||
+        (matrix[0] == matrix[3] && matrix[3] == matrix[6] && matrix[6] == side->getChar()) ||
+        (matrix[1] == matrix[4] && matrix[4] == matrix[7] && matrix[7] == side->getChar()) ||
+        (matrix[2] == matrix[5] && matrix[5] == matrix[8] && matrix[8] == side->getChar()) ||
+        (matrix[0] == matrix[4] && matrix[4] == matrix[8] && matrix[8] == side->getChar()) ||
+        (matrix[2] == matrix[4] && matrix[4] == matrix[6] && matrix[6] == side->getChar())) return true;
     else return false;
 }
