@@ -196,7 +196,6 @@ int main(int argc, char** argv)
             {
                 if(matrix[i] != 0)
                 {
-                    std::cout << "Sprite " << i << "has been DELETED" << std::endl;
                     delete sprites[i];
                 }
             }
