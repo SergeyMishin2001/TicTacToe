@@ -76,7 +76,7 @@ public:
     }
 
     void makeMove() override
-    {      
+    {           
         sprites[index] = new sf::Sprite(playerS);
         sprites[index]->setPosition(coord[index]);
         matrix[index] = 'x';
@@ -196,6 +196,7 @@ int main(int argc, char** argv)
             {
                 if(matrix[i] != 0)
                 {
+                    std::cout << "Sprite " << i << "has been DELETED" << std::endl;
                     delete sprites[i];
                 }
             }
@@ -207,12 +208,6 @@ int main(int argc, char** argv)
 
 bool checkWin()
 {
-    for(int i = 0; i != 9; i += 3)
-    {
-        std::cout << "| " << matrix[i] << " | " << matrix[i+1] << " | " << matrix[i+2] << " |" << std::endl;
-        std::cout << std::boolalpha << (matrix[0] == matrix[1] && matrix[1] == matrix[2]) << std::endl;
-    }
-
     if( (matrix[0] == matrix[1] && matrix[1] == matrix[2] && matrix[2] == side->getChar()) ||
         (matrix[3] == matrix[4] && matrix[4] == matrix[5] && matrix[5] == side->getChar()) ||
         (matrix[6] == matrix[7] && matrix[7] == matrix[8] && matrix[8] == side->getChar()) ||
